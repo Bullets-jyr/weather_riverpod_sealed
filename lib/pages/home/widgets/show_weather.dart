@@ -3,39 +3,43 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../models/current_weather/app_weather.dart';
 import '../../../models/current_weather/current_weather.dart';
-import '../../../models/custom_error/custom_error.dart';
+import '../providers/weather_state.dart';
 import 'format_text.dart';
 import 'select_city.dart';
 import 'show_icon.dart';
 import 'show_temperature.dart';
 
-class ShowWeather extends ConsumerWidget {
-  final AsyncValue<CurrentWeather?> weatherState;
+class ShowWeather extends ConsumerStatefulWidget {
+  final WeatherState weatherState;
   const ShowWeather({
     super.key,
     required this.weatherState,
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return weatherState.when(
-      skipError: true,
-      data: (CurrentWeather? weather) {
-        print('***** in data callback');
+  ConsumerState<ShowWeather> createState() => _ShowWeatherState();
+}
 
-        if (weather == null) {
-          return const SelectCity();
-        }
+class _ShowWeatherState extends ConsumerState<ShowWeather> {
+  Widget prevWeatherWidget = const SizedBox.shrink();
 
-        final appWeather = AppWeather.fromCurrentWeather(weather);
+  @override
+  Widget build(BuildContext context) {
+    final weatherState = widget.weatherState;
 
-        // return Center(
-        //   child: Text(
-        //     appWeather.name,
-        //     style: const TextStyle(fontSize: 18),
-        //   ),
-        // );
-        return ListView(
+    switch (weatherState) {
+      case WeatherStateInitial():
+        return const SelectCity();
+
+      case WeatherStateLoading():
+        return const Center(
+          child: CircularProgressIndicator(),
+        );
+
+      case WeatherStateSuccess(currentWeather: CurrentWeather currentWeather):
+        final appWeather = AppWeather.fromCurrentWeather(currentWeather);
+
+        prevWeatherWidget = ListView(
           children: [
             SizedBox(
               height: MediaQuery.of(context).size.height / 6,
@@ -64,32 +68,6 @@ class ShowWeather extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 60.0),
-            // Row(
-            //   mainAxisAlignment: MainAxisAlignment.center,
-            //   children: [
-            //     Text(
-            //       '${appWeather.temp}',
-            //       style: const TextStyle(
-            //         fontSize: 30,
-            //         fontWeight: FontWeight.bold,
-            //       ),
-            //     ),
-            //     const SizedBox(width: 20.0),
-            //     Column(
-            //       children: [
-            //         Text(
-            //           '${appWeather.tempMax}',
-            //           style: const TextStyle(fontSize: 16),
-            //         ),
-            //         const SizedBox(height: 10),
-            //         Text(
-            //           '${appWeather.tempMin}',
-            //           style: const TextStyle(fontSize: 16),
-            //         ),
-            //       ],
-            //     ),
-            //   ],
-            // ),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -129,30 +107,13 @@ class ShowWeather extends ConsumerWidget {
             ),
           ],
         );
-      },
-      error: (error, stackTrace) {
-        print('***** in error callback');
-        if (weatherState.value == null) {
-          return const SelectCity();
-        }
 
-        return Center(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 30.0),
-            child: Text(
-              (error as CustomError).errMsg,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 18),
-            ),
-          ),
-        );
-      },
-      loading: () {
-        print('***** in loading callback');
-        return const Center(
-          child: CircularProgressIndicator(),
-        );
-      },
-    );
+        return prevWeatherWidget;
+
+      case WeatherStateFailure(error: _):
+        return prevWeatherWidget is SizedBox
+            ? const SelectCity()
+            : prevWeatherWidget;
+    }
   }
 }
