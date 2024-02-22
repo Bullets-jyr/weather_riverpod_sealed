@@ -11,6 +11,7 @@ import 'show_temperature.dart';
 
 class ShowWeather extends ConsumerStatefulWidget {
   final WeatherState weatherState;
+
   const ShowWeather({
     super.key,
     required this.weatherState,
